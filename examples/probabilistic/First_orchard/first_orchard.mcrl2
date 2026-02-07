@@ -1,0 +1,51 @@
+% This mCRL2 specification models the game 'first orchard'.
+% First orchard is a cooperative game, where a set of players alternatingly roll a dice, and 
+% try to exhaust the set of fruits in the orchard before the raven arrives. The orchard contains 4 types of fruits,
+% namely red apples, green apples, pears and plums, each of which has 4 pieces. The raven arrives after 4 rolls of the dice.
+% The dice has 6 sides, 4 of which corresponds to a specific fruit, 1 to the raven, and the last to 2 arbitrary fruits.
+% The game is won if the orchard is empty before the raven arrives, and lost otherwise.  
+
+
+sort dice_val = struct red_apple | pear | green_apple | plum | raven | basket;
+
+act dice_roll: dice_val; 
+    victory, defeat:Bool;
+
+proc Dice(red_apples: Int, green_apples: Int, pears: Int, plums: Int, raven_path: Int) =
+    dist d:Nat[1/6] .
+        (d == 1 && red_apples > 0) -> dice_roll(red_apple) . Orchard(red_apples - 1, green_apples, pears, plums, raven_path)
+    <> (d == 2 && green_apples > 0) -> dice_roll(green_apple) . Orchard(red_apples, green_apples - 1, pears, plums, raven_path)
+    <> (d == 3 && pears > 0) -> dice_roll(pear) . Orchard(red_apples, green_apples, pears - 1, plums, raven_path)
+    <> (d == 4 && plums > 0) -> dice_roll(plum) . Orchard(red_apples, green_apples, pears, plums - 1, raven_path)
+    <> (d == 5 && raven_path > 0) -> dice_roll(raven) . Orchard(red_apples, green_apples, pears, plums, raven_path - 1)
+    <> (d == 6) -> Basket(red_apples, green_apples, pears, plums, raven_path)
+    <> (d==1 && red_apples == 0 || d==2 && green_apples == 0 || d==3 && pears == 0 || d==4 && plums == 0) -> Dice(red_apples, green_apples, pears, plums, raven_path)
+    ;
+
+proc Basket(red_apples: Int, green_apples: Int, pears: Int, plums: Int, raven_path: Int) =
+  (red_apples + green_apples + pears + plums <= 2) -> Orchard(0,0,0,0, raven_path)
+  <>
+  (red_apples + green_apples + pears + plums > 2) -> dist s:Nat[1/10] . (
+      (s == 1 && red_apples > 1) -> dice_roll(basket) . Orchard(red_apples - 2, green_apples, pears, plums, raven_path)
+    <> (s == 2 && green_apples > 1) -> dice_roll(basket) . Orchard(red_apples, green_apples - 2, pears, plums, raven_path)
+    <> (s == 3 && pears > 1) -> dice_roll(basket) . Orchard(red_apples, green_apples, pears - 2, plums, raven_path)
+    <> (s == 4 && plums > 1) -> dice_roll(basket) . Orchard(red_apples, green_apples, pears, plums - 2, raven_path)
+    <> (s == 5 && red_apples > 0 && green_apples > 0) -> dice_roll(basket) . Orchard(red_apples - 1, green_apples - 1, pears, plums, raven_path)
+    <> (s == 6 && red_apples > 0 && pears > 0) -> dice_roll(basket) . Orchard(red_apples - 1, green_apples, pears - 1, plums, raven_path)
+    <> (s == 7 && red_apples > 0 && plums > 0) -> dice_roll(basket) . Orchard(red_apples - 1, green_apples, pears, plums - 1, raven_path)
+    <> (s == 8 && green_apples > 0 && pears > 0) -> dice_roll(basket) . Orchard(red_apples, green_apples - 1, pears - 1, plums, raven_path)
+    <> (s == 9 && green_apples > 0 && plums > 0) -> dice_roll(basket) . Orchard(red_apples, green_apples - 1, pears, plums - 1, raven_path)
+    <> (s == 10 && pears > 0 && plums > 0) -> dice_roll(basket) . Orchard(red_apples, green_apples, pears - 1, plums - 1, raven_path)
+    <> ((s == 1 && !(red_apples > 1)) || (s == 2 && !(green_apples > 1)) || (s == 3 && !(pears > 1)) || (s == 4 && !(plums > 1)) || (s == 5 && !(red_apples > 0 && green_apples > 0)) || (s == 6 && !(red_apples > 0 && pears > 0)) || (s == 7 && !(red_apples > 0 && plums > 0)) || (s == 8 && !(green_apples > 0 && pears > 0)) || (s == 9 && !(green_apples > 0 && plums > 0)) || (s == 10 && !(pears > 0 && plums > 0))) -> Basket(red_apples, green_apples, pears, plums, raven_path)
+  );
+        
+    
+proc Orchard(red_apples:Int, green_apples:Int, pears:Int, plums:Int, raven_path:Int) =
+    % no more fruits, hence the players win
+    (red_apples == 0 && green_apples == 0 && pears == 0 && plums == 0 && raven_path > 0) -> victory(true)
+    % raven arrives before the orchard is empty, hence the players lose
+    <> (raven_path == 0 && (red_apples > 0 || green_apples > 0 || pears > 0 || plums > 0)) -> defeat(true)
+    % continue game as neither victory nor defeat has been reached
+    <> (raven_path > 0 && (red_apples > 0 || green_apples > 0 || pears > 0 || plums > 0)) -> Dice(red_apples, green_apples, pears, plums, raven_path);
+
+init Orchard(4,4,4,4,5);
