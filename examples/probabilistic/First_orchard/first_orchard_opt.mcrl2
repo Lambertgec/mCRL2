@@ -1,0 +1,110 @@
+% This mCRL2 specification models the game 'first orchard'.
+% First orchard is a cooperative game, where a set of players alternatingly roll a dice, and 
+% try to exhaust the set of fruits in the orchard before the raven arrives. The orchard contains 4 types of fruits,
+% namely red apples, green apples, pears and plums, each of which has 4 pieces. The raven arrives after 4 rolls of the dice.
+% The dice has 6 sides, 4 of which corresponds to a specific fruit, 1 to the raven, and the last to 2 arbitrary fruits.
+% The game is won if the orchard is emptied before the raven arrives, and lost otherwise.  
+
+% Define sorts for the various data types used in the specification.
+% Fruit corresponds to the different types of fruits in the orchard, 
+% where rApple corresponds to Red Apple, gApple to Green Apple, and so on.
+% Die describes the faces after rolling the dice, with d1-d4 corresponding to the 4 fruits, d5 to the raven, and d6 to the basket.
+% DiceVal describes the values of the rolled the dice, which can be either a specific fruit, the raven, or the basket.
+sort 
+    Fruit = struct rApple | gApple | pear | plum;
+    Die = struct d1 | d2 | d3 | d4 | d5 | d6;
+    DiceVal = struct fruit(Fruit) | val_raven | basket;
+
+% Actions can be dice_roll (that can take value DiceVal intuitively), pick_two for the basket action, where 2 fruits are picked,
+% and victory/defeat to indicate the end of the game (see above).
+act 
+    dice_roll: DiceVal;
+    pick_two: Fruit # Fruit;
+    victory, defeat;
+
+% Helper map to check if a specific fruit count is > 0
+% The first parameter is the fruit type, and the next four parameters are the counts of each fruit in the orchard.
+% Returns the number of fruits of the specified type currently in the orchard.
+map cnt: Fruit # Nat # Nat # Nat # Nat -> Nat;
+var r, g, p, pl: Nat;
+eqn cnt(rApple, r, g, p, pl) = r;
+    cnt(gApple, r, g, p, pl) = g;
+    cnt(pear, r, g, p, pl) = p;
+    cnt(plum, r, g, p, pl) = pl;
+
+% The process of throwing the dice. d1-d4 correspond to the 4 fruits, d5 to the raven, and d6 to the basket.
+% Throwing d1-d5 means that the corresponding unit is reduced by 1 if possible, otherwise the turn is passed.
+% d6 calls the Basket process, described below. 
+% The distribution of the dice is uniform, meaning that each face has a 1/6 chance of being rolled.
+proc Dice(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
+    dist d:Die[1/6] . (
+        % 1-4: Fruits
+        (d == d1) -> dice_roll(fruit(rApple)) . 
+            ((r > 0) -> Orchard(Int2Nat(r - 1), g, p, pl, raven) 
+            <> (r == 0) -> Orchard(r, g, p, pl, raven))
+        <> 
+        (d == d2) -> dice_roll(fruit(gApple)) . 
+            ((g > 0) -> Orchard(r, Int2Nat(g - 1), p, pl, raven) 
+            <> (g == 0) -> Orchard(r, g, p, pl, raven))
+        <> 
+        (d == d3) -> dice_roll(fruit(pear)) . 
+            ((p > 0) -> Orchard(r, g, Int2Nat(p - 1), pl, raven) 
+            <> (p == 0) -> Orchard(r, g, p, pl, raven))
+        <> 
+        (d == d4) -> dice_roll(fruit(plum)) . 
+            ((pl > 0) -> Orchard(r, g, p, Int2Nat(pl - 1), raven) 
+            <> (pl == 0) -> Orchard(r, g, p, pl, raven))
+        <> 
+        % 5: Raven moves
+        (d == d5) -> dice_roll(val_raven) . Orchard(r, g, p, pl, Int2Nat(raven - 1))
+        <> 
+        % 6: Basket
+        (d == d6) -> dice_roll(basket) . Basket(r, g, p, pl, raven)
+    );
+
+% The process for the basket action. 
+% If there are 2 or fewer fruits left, all fruits are removed, as trivially there is no other option. 
+% Otherwise, two fruits are picked non-deterministically.
+proc Basket(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
+    % If total fruits <= 2, remove everything
+    (r + g + p + pl <= 2) -> Orchard(0, 0, 0, 0, raven)
+    <>
+    % Else, non-deterministically pick two valid fruits
+    (r + g + p + pl > 2) -> 
+        sum f1, f2: Fruit . 
+        (
+            % Case 1: Picking two of the same fruit
+            (f1 == f2 && cnt(f1, r, g, p, pl) >= 2) -> 
+                pick_two(f1, f2) . 
+                Orchard(
+                    Int2Nat(r  - (if(f1==rApple, 2, 0))),
+                    Int2Nat(g  - (if(f1==gApple, 2, 0))),
+                    Int2Nat(p  - (if(f1==pear, 2, 0))),
+                    Int2Nat(pl - (if(f1==plum, 2, 0))),
+                    raven
+                )
+            <>
+            % Case 2: Picking two different fruits
+            (f1 != f2 && cnt(f1, r, g, p, pl) > 0 && cnt(f2, r, g, p, pl) > 0) ->
+                pick_two(f1, f2) .
+                Orchard(
+                    Int2Nat(r  - (if(f1==rApple || f2==rApple, 1, 0))),
+                    Int2Nat(g  - (if(f1==gApple || f2==gApple, 1, 0))),
+                    Int2Nat(p  - (if(f1==pear   || f2==pear, 1, 0))),
+                    Int2Nat(pl - (if(f1==plum   || f2==plum, 1, 0))),
+                    raven
+                )
+        );
+
+% Main process of the game.
+% Checks for winning and losing conditions, otherwise progresses the game by calling the Dice process.
+% In all cases, the sub processes once finished, call this main process again.
+proc Orchard(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
+    % Victory: All fruits gone
+    (r == 0 && g == 0 && p == 0 && pl == 0 && raven > 0) -> victory . delta
+    % Defeat: Raven arrived
+    <> (raven == 0 && (r + g + p + pl > 0)) -> defeat . delta
+    % Continue Game
+    <> (raven > 0 && (r + g + p + pl > 0)) -> Dice(r, g, p, pl, raven);
+
+init Dice(4, 4, 4, 4, 5);
