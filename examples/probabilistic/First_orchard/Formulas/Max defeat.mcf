@@ -1,0 +1,5 @@
+% Maximum defeat probability (basket picks worst pair)
+% 0.2954724115
+%form mu X. val(0) || <defeat>val(1) || <true>X;
+
+form mu X. <true*>(<defeat>val(1) || val(0));

@@ -1,0 +1,5 @@
+% Maximum win probability (basket picks best pair)
+% 0.7650310805
+% form mu X. val(0) || <victory>val(1) || <true>X;
+
+form mu X. <true*>(<victory>val(1) || val(0));

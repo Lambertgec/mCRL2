@@ -3,49 +3,82 @@
 % try to exhaust the set of fruits in the orchard before the raven arrives. The orchard contains 4 types of fruits,
 % namely red apples, green apples, pears and plums, each of which has 4 pieces. The raven arrives after 4 rolls of the dice.
 % The dice has 6 sides, 4 of which corresponds to a specific fruit, 1 to the raven, and the last to 2 arbitrary fruits.
-% The game is won if the orchard is empty before the raven arrives, and lost otherwise.  
+% The game is won if the orchard is emptied before the raven arrives, and lost otherwise.  
 
+% Define sorts for the various data types used in the specification.
+% Fruit corresponds to the different types of fruits in the orchard, 
+% where rApple corresponds to Red Apple, gApple to Green Apple, and so on.
+% DiceVal describes the outcome of rolling the dice: a specific fruit, the raven, or the basket.
+sort 
+    Fruit = struct rApple | gApple | pear | plum;
+    DiceVal = struct fruit(Fruit) | val_raven | basket;
 
-sort dice_val = struct red_apple | pear | green_apple | plum | raven | basket;
+% Actions can be dice_roll (that can take value DiceVal intuitively), pick_two for the basket action, where 2 fruits are picked,
+% and victory/defeat to indicate the end of the game (see above).
+act 
+    dice_roll: DiceVal;
+    pick_two: Fruit # Fruit;
+    victory, defeat;
 
-act dice_roll: dice_val; 
-    victory, defeat:Bool;
+% Helper map to check if a specific fruit count is > 0
+% The first parameter is the fruit type, and the next four parameters are the counts of each fruit in the orchard.
+% Returns the number of fruits of the specified type currently in the orchard.
+map cnt: Fruit # Nat # Nat # Nat # Nat -> Nat;
+var r, g, p, pl: Nat;
+eqn cnt(rApple, r, g, p, pl) = r;
+    cnt(gApple, r, g, p, pl) = g;
+    cnt(pear, r, g, p, pl) = p;
+    cnt(plum, r, g, p, pl) = pl;
 
-proc Dice(red_apples: Int, green_apples: Int, pears: Int, plums: Int, raven_path: Int) =
-    dist d:Nat[1/6] .
-        (d == 1 && red_apples > 0) -> dice_roll(red_apple) . Orchard(red_apples - 1, green_apples, pears, plums, raven_path)
-    <> (d == 2 && green_apples > 0) -> dice_roll(green_apple) . Orchard(red_apples, green_apples - 1, pears, plums, raven_path)
-    <> (d == 3 && pears > 0) -> dice_roll(pear) . Orchard(red_apples, green_apples, pears - 1, plums, raven_path)
-    <> (d == 4 && plums > 0) -> dice_roll(plum) . Orchard(red_apples, green_apples, pears, plums - 1, raven_path)
-    <> (d == 5 && raven_path > 0) -> dice_roll(raven) . Orchard(red_apples, green_apples, pears, plums, raven_path - 1)
-    <> (d == 6) -> Basket(red_apples, green_apples, pears, plums, raven_path)
-    <> (d==1 && red_apples == 0 || d==2 && green_apples == 0 || d==3 && pears == 0 || d==4 && plums == 0) -> Dice(red_apples, green_apples, pears, plums, raven_path)
-    ;
+% The process for the basket action. 
+% If there are 2 or fewer fruits left, all fruits are removed, as trivially there is no other option. 
+% Otherwise, two fruits are picked non-deterministically.
+proc Basket(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
+    % If total fruits <= 2, remove everything
+    (r + g + p + pl <= 2) -> Game(0, 0, 0, 0, raven)
+    <>
+    % Else, non-deterministically pick two valid fruits
+    (r + g + p + pl > 2) -> 
+        sum f1, f2: Fruit . 
+        (
+            % Case 1: Picking two of the same fruit
+            (f1 == f2 && cnt(f1, r, g, p, pl) >= 2) -> 
+                pick_two(f1, f2) . 
+                Game(
+                    Int2Nat(r  - (if(f1==rApple, 2, 0))),
+                    Int2Nat(g  - (if(f1==gApple, 2, 0))),
+                    Int2Nat(p  - (if(f1==pear, 2, 0))),
+                    Int2Nat(pl - (if(f1==plum, 2, 0))),
+                    raven
+                )
+            <>
+            % Case 2: Picking two different fruits
+            (f1 != f2 && cnt(f1, r, g, p, pl) > 0 && cnt(f2, r, g, p, pl) > 0) ->
+                pick_two(f1, f2) .
+                Game(
+                    Int2Nat(r  - (if(f1==rApple || f2==rApple, 1, 0))),
+                    Int2Nat(g  - (if(f1==gApple || f2==gApple, 1, 0))),
+                    Int2Nat(p  - (if(f1==pear   || f2==pear, 1, 0))),
+                    Int2Nat(pl - (if(f1==plum   || f2==plum, 1, 0))),
+                    raven
+                )
+        );
 
-proc Basket(red_apples: Int, green_apples: Int, pears: Int, plums: Int, raven_path: Int) =
-  (red_apples + green_apples + pears + plums <= 2) -> Orchard(0,0,0,0, raven_path)
-  <>
-  (red_apples + green_apples + pears + plums > 2) -> dist s:Nat[1/10] . (
-      (s == 1 && red_apples > 1) -> dice_roll(basket) . Orchard(red_apples - 2, green_apples, pears, plums, raven_path)
-    <> (s == 2 && green_apples > 1) -> dice_roll(basket) . Orchard(red_apples, green_apples - 2, pears, plums, raven_path)
-    <> (s == 3 && pears > 1) -> dice_roll(basket) . Orchard(red_apples, green_apples, pears - 2, plums, raven_path)
-    <> (s == 4 && plums > 1) -> dice_roll(basket) . Orchard(red_apples, green_apples, pears, plums - 2, raven_path)
-    <> (s == 5 && red_apples > 0 && green_apples > 0) -> dice_roll(basket) . Orchard(red_apples - 1, green_apples - 1, pears, plums, raven_path)
-    <> (s == 6 && red_apples > 0 && pears > 0) -> dice_roll(basket) . Orchard(red_apples - 1, green_apples, pears - 1, plums, raven_path)
-    <> (s == 7 && red_apples > 0 && plums > 0) -> dice_roll(basket) . Orchard(red_apples - 1, green_apples, pears, plums - 1, raven_path)
-    <> (s == 8 && green_apples > 0 && pears > 0) -> dice_roll(basket) . Orchard(red_apples, green_apples - 1, pears - 1, plums, raven_path)
-    <> (s == 9 && green_apples > 0 && plums > 0) -> dice_roll(basket) . Orchard(red_apples, green_apples - 1, pears, plums - 1, raven_path)
-    <> (s == 10 && pears > 0 && plums > 0) -> dice_roll(basket) . Orchard(red_apples, green_apples, pears - 1, plums - 1, raven_path)
-    <> ((s == 1 && !(red_apples > 1)) || (s == 2 && !(green_apples > 1)) || (s == 3 && !(pears > 1)) || (s == 4 && !(plums > 1)) || (s == 5 && !(red_apples > 0 && green_apples > 0)) || (s == 6 && !(red_apples > 0 && pears > 0)) || (s == 7 && !(red_apples > 0 && plums > 0)) || (s == 8 && !(green_apples > 0 && pears > 0)) || (s == 9 && !(green_apples > 0 && plums > 0)) || (s == 10 && !(pears > 0 && plums > 0))) -> Basket(red_apples, green_apples, pears, plums, raven_path)
-  );
-        
-    
-proc Orchard(red_apples:Int, green_apples:Int, pears:Int, plums:Int, raven_path:Int) =
-    % no more fruits, hence the players win
-    (red_apples == 0 && green_apples == 0 && pears == 0 && plums == 0 && raven_path > 0) -> victory(true)
-    % raven arrives before the orchard is empty, hence the players lose
-    <> (raven_path == 0 && (red_apples > 0 || green_apples > 0 || pears > 0 || plums > 0)) -> defeat(true)
-    % continue game as neither victory nor defeat has been reached
-    <> (raven_path > 0 && (red_apples > 0 || green_apples > 0 || pears > 0 || plums > 0)) -> Dice(red_apples, green_apples, pears, plums, raven_path);
+% Main process of the game.
+% Checks for winning and losing conditions, otherwise rolls the dice.
+% The dice has 6 outcomes uniformly distributed (probability of 1/6), with actions directly represented as DiceVal.
+% fruit(f) reduces the corresponding fruit f count by 1, val_raven the raven count by 1 and basket calls Basket process.
+proc Game(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
+    (r==0 && g==0 && p==0 && pl==0) -> victory . delta
+    <> (raven==0) -> defeat . delta
+    <> (raven > 0 && r+g+p+pl > 0) ->
+        dist d:DiceVal[1/6] . (
+            (d==fruit(rApple)) -> (dice_roll(fruit(rApple)) . Game(Int2Nat(r-if(r>0,1,0)), g, p, pl, raven))
+            <> (d==fruit(gApple)) -> (dice_roll(fruit(gApple)) . Game(r, Int2Nat(g-if(g>0,1,0)), p, pl, raven))
+            <> (d==fruit(pear))   -> (dice_roll(fruit(pear)) . Game(r, g, Int2Nat(p-if(p>0,1,0)), pl, raven))
+            <> (d==fruit(plum))   -> (dice_roll(fruit(plum)) . Game(r, g, p, Int2Nat(pl-if(pl>0,1,0)), raven))
+            <> (d==val_raven)     -> (dice_roll(val_raven) . Game(r, g, p, pl, Int2Nat(raven-1)))
+            <> (d==basket)        -> (dice_roll(basket) . Basket(r, g, p, pl, raven))
+        );
 
-init Orchard(4,4,4,4,5);
+init Game(4, 4, 4, 4, 5);
