@@ -1,4 +1,5 @@
 % Max win probability parameterised by initial raven count K.
+% UNFINISHED: This formula is not yet correct. It is a work in progress.
 
 map K: Nat;
 eqn K = 5;
