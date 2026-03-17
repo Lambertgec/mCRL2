@@ -3,6 +3,8 @@
 % Classic best tactic: 0.3686426934
 % Classic worst tactic: 0.4450641742
 % For large:
+% Large best tactic:
+% Large worst tactic: 
 %form mu X. val(0) || <defeat>val(1) || <true>X;
 
 form mu X. <true*>(<defeat>val(1) || val(0));
