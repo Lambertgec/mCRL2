@@ -1,8 +1,8 @@
-% This mCRL2 specification models the game 'first orchard's larger version.
-% The game play is identical to the other smaller model, with the following differences:
-% Upon throwing a basket, the player can now pick 2 fruits instead of 1;
-% The fruits have a count of 10 instead of 4 per kind, and the raven arrives after 9 rolls instead of 4.
-% All other behaviours are identical to the smaller model, and the same comments apply.
+% Same model as orchard_L.mcrl2, but with an actual strategy for the basket action as opposed to non-determinism.
+% Instead of picking a random fruit, the player picks the fruit with the least count in the orchard, 
+% ensuring that fruits are exhausted as soon as possible. Rolling exhausted fruits result in wasted rolls, allowing for more 
+% raven rolls and thus overall making the game more likely to be lost.
+% This represents the worst consistent strategy for the player.
 
 sort 
     Fruit = struct rApple | gApple | pear | plum;
@@ -20,6 +20,7 @@ eqn cnt(rApple, r, g, p, pl) = r;
     cnt(pear, r, g, p, pl) = p;
     cnt(plum, r, g, p, pl) = pl;
 
+% Helper function to find the minimum fruit count in the orchard, used to determine the worst fruit to pick for the basket action.
 map minf: Nat # Nat # Nat # Nat -> Nat;
 var r, g, p, pl: Nat;
 eqn minf(r, g, p, pl) = 
@@ -33,6 +34,9 @@ eqn minf(r, g, p, pl) =
                      pl,
                      0))));
 
+% Helper functions to determine which pair of fruits are worst to pick for the basket action.
+% worst1 finds the fruit with the least count in the orchard (deterministically),
+% and worst2 finds the fruit with the least count after removing one of the worst1 fruit (also deterministically).
 map worst1: Nat # Nat # Nat # Nat -> Fruit;
      worst2: Nat # Nat # Nat # Nat -> Fruit;
 var r, g, p, pl: Nat;
@@ -78,6 +82,7 @@ eqn worst1(r, g, p, pl) =
                                 pear,
                                 plum))))));
 
+% The process for the basket action, picking the two fruits with the least count in the orchard.
 proc Basket(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
     (r + g + p + pl <= 2) -> Game(0, 0, 0, 0, raven)
     <>
