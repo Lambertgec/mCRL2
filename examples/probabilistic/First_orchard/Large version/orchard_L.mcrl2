@@ -1,0 +1,63 @@
+% This mCRL2 specification models the game 'first orchard's larger version.
+% The game play is identical to the other smaller model, with the following differences:
+% Upon throwing a basket, the player can now pick 2 fruits instead of 1;
+% The fruits have a count of 10 instead of 4 per kind, and the raven arrives after 9 rolls instead of 4.
+% All other behaviours are identical to the smaller model, and the same comments apply.
+
+sort 
+    Fruit = struct rApple | gApple | pear | plum;
+    DiceVal = struct fruit(Fruit) | val_raven | basket;
+
+act 
+    dice_roll: DiceVal;
+    pick_two: Fruit # Fruit;
+    victory, defeat;
+
+map cnt: Fruit # Nat # Nat # Nat # Nat -> Nat;
+var r, g, p, pl: Nat;
+eqn cnt(rApple, r, g, p, pl) = r;
+    cnt(gApple, r, g, p, pl) = g;
+    cnt(pear, r, g, p, pl) = p;
+    cnt(plum, r, g, p, pl) = pl;
+
+proc Basket(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
+    (r + g + p + pl <= 2) -> Game(0, 0, 0, 0, raven)
+    <>
+    (r + g + p + pl > 2) -> 
+        sum f1, f2: Fruit . 
+        (
+            (f1 == f2 && cnt(f1, r, g, p, pl) >= 2) -> 
+                pick_two(f1, f2) . 
+                Game(
+                    Int2Nat(r  - (if(f1==rApple, 2, 0))),
+                    Int2Nat(g  - (if(f1==gApple, 2, 0))),
+                    Int2Nat(p  - (if(f1==pear, 2, 0))),
+                    Int2Nat(pl - (if(f1==plum, 2, 0))),
+                    raven
+                )
+            <>
+            (f1 != f2 && cnt(f1, r, g, p, pl) > 0 && cnt(f2, r, g, p, pl) > 0) ->
+                pick_two(f1, f2) .
+                Game(
+                    Int2Nat(r  - (if(f1==rApple || f2==rApple, 1, 0))),
+                    Int2Nat(g  - (if(f1==gApple || f2==gApple, 1, 0))),
+                    Int2Nat(p  - (if(f1==pear   || f2==pear, 1, 0))),
+                    Int2Nat(pl - (if(f1==plum   || f2==plum, 1, 0))),
+                    raven
+                )
+        );
+
+proc Game(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
+    (r==0 && g==0 && p==0 && pl==0) -> victory . delta
+    <> (raven==0) -> defeat . delta
+    <> (raven > 0 && r+g+p+pl > 0) ->
+        dist d:DiceVal[1/6] . (
+            (d==fruit(rApple)) -> (dice_roll(fruit(rApple)) . Game(Int2Nat(r-if(r>0,1,0)), g, p, pl, raven))
+            <> (d==fruit(gApple)) -> (dice_roll(fruit(gApple)) . Game(r, Int2Nat(g-if(g>0,1,0)), p, pl, raven))
+            <> (d==fruit(pear))   -> (dice_roll(fruit(pear)) . Game(r, g, Int2Nat(p-if(p>0,1,0)), pl, raven))
+            <> (d==fruit(plum))   -> (dice_roll(fruit(plum)) . Game(r, g, p, Int2Nat(pl-if(pl>0,1,0)), raven))
+            <> (d==val_raven)     -> (dice_roll(val_raven) . Game(r, g, p, pl, Int2Nat(raven-1)))
+            <> (d==basket)        -> (dice_roll(basket) . Basket(r, g, p, pl, raven))
+        );
+
+init Game(10, 10, 10, 10, 9);

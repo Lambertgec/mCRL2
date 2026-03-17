@@ -1,0 +1,105 @@
+% This mCRL2 specification models the game 'first orchard's larger version.
+% The game play is identical to the other smaller model, with the following differences:
+% Upon throwing a basket, the player can now pick 2 fruits instead of 1;
+% The fruits have a count of 10 instead of 4 per kind, and the raven arrives after 9 rolls instead of 4.
+% All other behaviours are identical to the smaller model, and the same comments apply.
+
+sort 
+    Fruit = struct rApple | gApple | pear | plum;
+    DiceVal = struct fruit(Fruit) | val_raven | basket;
+
+act 
+    dice_roll: DiceVal;
+    pick_two: Fruit # Fruit;
+    victory, defeat;
+
+map cnt: Fruit # Nat # Nat # Nat # Nat -> Nat;
+var r, g, p, pl: Nat;
+eqn cnt(rApple, r, g, p, pl) = r;
+    cnt(gApple, r, g, p, pl) = g;
+    cnt(pear, r, g, p, pl) = p;
+    cnt(plum, r, g, p, pl) = pl;
+
+map maxf: Nat # Nat # Nat # Nat -> Nat;
+var r, g, p, pl: Nat;
+eqn maxf(r, g, p, pl) = 
+     if(r >= g && r >= p && r >= pl,
+         r,
+         if(g >= r && g >= p && g >= pl,
+             g,
+             if(p >= r && p >= g && p >= pl,
+                 p,
+                 pl)));
+
+map best1: Nat # Nat # Nat # Nat -> Fruit;
+     best2: Nat # Nat # Nat # Nat -> Fruit;
+var r, g, p, pl: Nat;
+eqn best1(r, g, p, pl) =
+        if(maxf(r, g, p, pl) == r,
+             rApple,
+             if(maxf(r, g, p, pl) == g,
+                  gApple,
+                  if(maxf(r, g, p, pl) == p,
+                        pear,
+                        plum)));
+
+     best2(r, g, p, pl) =
+        if(best1(r, g, p, pl) == rApple,
+            if(maxf(Int2Nat(r - 1), g, p, pl) == Int2Nat(r - 1),
+                rApple,
+                if(maxf(Int2Nat(r - 1), g, p, pl) == g,
+                    gApple,
+                    if(maxf(Int2Nat(r - 1), g, p, pl) == p,
+                        pear,
+                        plum))),
+            if(best1(r, g, p, pl) == gApple,
+                if(maxf(r, Int2Nat(g - 1), p, pl) == r,
+                    rApple,
+                    if(maxf(r, Int2Nat(g - 1), p, pl) == Int2Nat(g - 1),
+                        gApple,
+                        if(maxf(r, Int2Nat(g - 1), p, pl) == p,
+                            pear,
+                            plum))),
+                if(best1(r, g, p, pl) == pear,
+                    if(maxf(r, g, Int2Nat(p - 1), pl) == r,
+                        rApple,
+                        if(maxf(r, g, Int2Nat(p - 1), pl) == g,
+                            gApple,
+                            if(maxf(r, g, Int2Nat(p - 1), pl) == Int2Nat(p - 1),
+                                pear,
+                                plum))),
+                    if(maxf(r, g, p, Int2Nat(pl - 1)) == r,
+                        rApple,
+                        if(maxf(r, g, p, Int2Nat(pl - 1)) == g,
+                            gApple,
+                            if(maxf(r, g, p, Int2Nat(pl - 1)) == p,
+                                pear,
+                                plum))))));
+
+proc Basket(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
+    (r + g + p + pl <= 2) -> Game(0, 0, 0, 0, raven)
+    <>
+    (r + g + p + pl > 2) ->
+        (pick_two(best1(r, g, p, pl), best2(r, g, p, pl)) .
+         Game(
+            Int2Nat(r - if(best1(r, g, p, pl) == rApple, 1, 0) - if(best2(r, g, p, pl) == rApple, 1, 0)),
+            Int2Nat(g - if(best1(r, g, p, pl) == gApple, 1, 0) - if(best2(r, g, p, pl) == gApple, 1, 0)),
+            Int2Nat(p - if(best1(r, g, p, pl) == pear, 1, 0) - if(best2(r, g, p, pl) == pear, 1, 0)),
+            Int2Nat(pl - if(best1(r, g, p, pl) == plum, 1, 0) - if(best2(r, g, p, pl) == plum, 1, 0)),
+            raven
+         ));
+
+proc Game(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
+    (r==0 && g==0 && p==0 && pl==0) -> victory . delta
+    <> (raven==0) -> defeat . delta
+    <> (raven > 0 && r+g+p+pl > 0) ->
+        dist d:DiceVal[1/6] . (
+            (d==fruit(rApple)) -> (dice_roll(fruit(rApple)) . Game(Int2Nat(r-if(r>0,1,0)), g, p, pl, raven))
+            <> (d==fruit(gApple)) -> (dice_roll(fruit(gApple)) . Game(r, Int2Nat(g-if(g>0,1,0)), p, pl, raven))
+            <> (d==fruit(pear))   -> (dice_roll(fruit(pear)) . Game(r, g, Int2Nat(p-if(p>0,1,0)), pl, raven))
+            <> (d==fruit(plum))   -> (dice_roll(fruit(plum)) . Game(r, g, p, Int2Nat(pl-if(pl>0,1,0)), raven))
+            <> (d==val_raven)     -> (dice_roll(val_raven) . Game(r, g, p, pl, Int2Nat(raven-1)))
+            <> (d==basket)        -> (dice_roll(basket) . Basket(r, g, p, pl, raven))
+        );
+
+init Game(10, 10, 10, 10, 9);
