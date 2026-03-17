@@ -1,0 +1,61 @@
+% Same implementation as first_orchard.mcrl2, but with an actual strategy for the basket action as opposed to non-determinism.
+% Instead of picking a random fruit, the player picks the fruit with the most count in the orchard, to overall keep the most 
+% amount of different kinds of fruits in the orchard, thus making as most die rolls as possible fruitful.
+% This represents the best consistent strategy for the player.
+
+sort 
+    Fruit = struct rApple | gApple | pear | plum;
+    DiceVal = struct fruit(Fruit) | val_raven | basket;
+
+act 
+    dice_roll: DiceVal;
+    pick_two: Fruit;
+    victory, defeat;
+
+map cnt: Fruit # Nat # Nat # Nat # Nat -> Nat;
+var r, g, p, pl: Nat;
+eqn cnt(rApple, r, g, p, pl) = r;
+    cnt(gApple, r, g, p, pl) = g;
+    cnt(pear, r, g, p, pl) = p;
+    cnt(plum, r, g, p, pl) = pl;
+
+% Helper function to find the maximum fruit count in the orchard, used to determine the best fruit to pick for the basket action.
+map maxf: Nat # Nat # Nat # Nat -> Nat;
+var r, g, p, pl: Nat;
+eqn maxf(r, g, p, pl) = 
+     if(r >= g && r >= p && r >= pl,
+         r,
+         if(g >= r && g >= p && g >= pl,
+             g,
+             if(p >= r && p >= g && p >= pl,
+                 p,
+                 pl)));
+
+% The process for the basket action, picking the fruit with the most count in the orchard.
+proc Basket(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
+    (r + g + p + pl <= 1) -> Game(0, 0, 0, 0, raven)
+    <>
+    (r + g + p + pl > 1) -> (
+        (maxf(r, g, p, pl) == r) -> (pick_two(rApple) . Game(Int2Nat(r-1), g, p, pl, raven))
+        <>
+        (maxf(r, g, p, pl) == g) -> (pick_two(gApple) . Game(r, Int2Nat(g-1), p, pl, raven))
+        <>
+        (maxf(r, g, p, pl) == p) -> (pick_two(pear) . Game(r, g, Int2Nat(p-1), pl, raven))
+        <>
+        (maxf(r, g, p, pl) == pl) -> (pick_two(plum) . Game(r, g, p, Int2Nat(pl-1), raven))
+    );
+
+proc Game(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
+    (r==0 && g==0 && p==0 && pl==0) -> victory . delta
+    <> (raven==0) -> defeat . delta
+    <> (raven > 0 && r+g+p+pl > 0) ->
+        dist d:DiceVal[1/6] . (
+            (d==fruit(rApple)) -> (dice_roll(fruit(rApple)) . Game(Int2Nat(r-if(r>0,1,0)), g, p, pl, raven))
+            <> (d==fruit(gApple)) -> (dice_roll(fruit(gApple)) . Game(r, Int2Nat(g-if(g>0,1,0)), p, pl, raven))
+            <> (d==fruit(pear))   -> (dice_roll(fruit(pear)) . Game(r, g, Int2Nat(p-if(p>0,1,0)), pl, raven))
+            <> (d==fruit(plum))   -> (dice_roll(fruit(plum)) . Game(r, g, p, Int2Nat(pl-if(pl>0,1,0)), raven))
+            <> (d==val_raven)     -> (dice_roll(val_raven) . Game(r, g, p, pl, Int2Nat(raven-1)))
+            <> (d==basket)        -> (dice_roll(basket) . Basket(r, g, p, pl, raven))
+        );
+
+init Game(4, 4, 4, 4, 5);

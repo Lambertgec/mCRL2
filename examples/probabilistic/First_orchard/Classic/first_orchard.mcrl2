@@ -2,7 +2,7 @@
 % First orchard is a cooperative game, where a set of players alternatingly roll a dice, and 
 % try to exhaust the set of fruits in the orchard before the raven arrives. The orchard contains 4 types of fruits,
 % namely red apples, green apples, pears and plums, each of which has 4 pieces. The raven arrives after 4 rolls of the dice.
-% The dice has 6 sides, 4 of which corresponds to a specific fruit, 1 to the raven, and the last to 2 arbitrary fruits.
+% The dice has 6 sides, 4 of which corresponds to a specific fruit, 1 to the raven, and the last to an arbitrary fruits.
 % The game is won if the orchard is emptied before the raven arrives, and lost otherwise.  
 
 % Define sorts for the various data types used in the specification.
@@ -17,7 +17,7 @@ sort
 % and victory/defeat to indicate the end of the game (see above).
 act 
     dice_roll: DiceVal;
-    pick_two: Fruit # Fruit;
+    pick_two: Fruit;
     victory, defeat;
 
 % Helper map to check if a specific fruit count is > 0
@@ -31,35 +31,23 @@ eqn cnt(rApple, r, g, p, pl) = r;
     cnt(plum, r, g, p, pl) = pl;
 
 % The process for the basket action. 
-% If there are 2 or fewer fruits left, all fruits are removed, as trivially there is no other option. 
-% Otherwise, two fruits are picked non-deterministically.
+% If there are 1 fruit left, that fruit is removed, as trivially there is no other option. 
+% Otherwise, a fruit is picked non-deterministically.
 proc Basket(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
     % If total fruits <= 2, remove everything
-    (r + g + p + pl <= 2) -> Game(0, 0, 0, 0, raven)
+    (r + g + p + pl <= 1) -> Game(0, 0, 0, 0, raven)
     <>
-    % Else, non-deterministically pick two valid fruits
-    (r + g + p + pl > 2) -> 
-        sum f1, f2: Fruit . 
+    % Else, non-deterministically pick a valid fruits
+    (r + g + p + pl > 1) -> 
+        sum f1: Fruit . 
         (
-            % Case 1: Picking two of the same fruit
-            (f1 == f2 && cnt(f1, r, g, p, pl) >= 2) -> 
-                pick_two(f1, f2) . 
+            (cnt(f1, r, g, p, pl) >= 1) -> 
+                pick_two(f1) . 
                 Game(
-                    Int2Nat(r  - (if(f1==rApple, 2, 0))),
-                    Int2Nat(g  - (if(f1==gApple, 2, 0))),
-                    Int2Nat(p  - (if(f1==pear, 2, 0))),
-                    Int2Nat(pl - (if(f1==plum, 2, 0))),
-                    raven
-                )
-            <>
-            % Case 2: Picking two different fruits
-            (f1 != f2 && cnt(f1, r, g, p, pl) > 0 && cnt(f2, r, g, p, pl) > 0) ->
-                pick_two(f1, f2) .
-                Game(
-                    Int2Nat(r  - (if(f1==rApple || f2==rApple, 1, 0))),
-                    Int2Nat(g  - (if(f1==gApple || f2==gApple, 1, 0))),
-                    Int2Nat(p  - (if(f1==pear   || f2==pear, 1, 0))),
-                    Int2Nat(pl - (if(f1==plum   || f2==plum, 1, 0))),
+                    Int2Nat(r  - (if(f1==rApple, 1, 0))),
+                    Int2Nat(g  - (if(f1==gApple, 1, 0))),
+                    Int2Nat(p  - (if(f1==pear, 1, 0))),
+                    Int2Nat(pl - (if(f1==plum, 1, 0))),
                     raven
                 )
         );
