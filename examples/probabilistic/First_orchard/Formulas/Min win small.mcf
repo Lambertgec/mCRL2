@@ -1,0 +1,17 @@
+% Minimum win probability (basket picks the worst pair)
+% For classic version (non-deterministic choice of the basket): 0.5549358258
+% Classic best tactic: 0.6313573066
+% Classic worst tactic: 0.5549358258
+%
+% By duality: P(win) + P(defeat) = 1 
+% Hence: min_win_prob = 1 - max_defeat_prob.
+%   max_defeat = 0.2954724115  =>  min_win = 1 - 0.2954724115 = 0.7045275885
+% For classic:
+% For large:
+
+form mu X . 
+    val(0) || 
+    <victory>val(1) || 
+    (sup d: DiceVal . <dice_roll(d)>X) || 
+    ((sup f: Fruit . <pick_two(f)>val(1)) && (inf f: Fruit . ([pick_two(f)]X && val(1))) 
+);

@@ -3,7 +3,8 @@
 % By duality: P(win) + P(defeat) = 1 
 % Hence: min_win_prob = 1 - max_defeat_prob.
 %   max_defeat = 0.2954724115  =>  min_win = 1 - 0.2954724115 = 0.7045275885
-% 0.7045275885
+% For classic:
+% For large:
 
 form mu X . 
     val(0) || 

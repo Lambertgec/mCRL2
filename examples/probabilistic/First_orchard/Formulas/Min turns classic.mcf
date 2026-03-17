@@ -1,0 +1,17 @@
+% non-deterministic choice 
+% 22.33909653 maximum expected number of turns for small game
+% 20.88278653 minimal expected number of turns for small game
+%deterministic
+% optimal maximum: 20.88278653
+% optimal minimum: 20.88278653
+% non-optimal maximum: 22.33909653
+% non-optimal minimum: 22.33909653
+
+% minimal
+form mu X.
+    val(0) ||
+    (
+        [victory || defeat] val(0) &&
+        [exists d: DiceVal . dice_roll(d)] (X + val(1)) &&
+        [exists f: Fruit . pick_two(f)] X
+    );

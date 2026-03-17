@@ -1,0 +1,9 @@
+%  maximum expected number of turns for large version
+%  minimal expected number of turns for large version
+
+% max
+form mu X.
+    <victory || defeat> val(0) ||
+    (sup d: DiceVal . <dice_roll(d)> (X + val(1))) ||
+    (sup f1, f2: Fruit . <pick_two(f1, f2)> X) ||
+    val(0);

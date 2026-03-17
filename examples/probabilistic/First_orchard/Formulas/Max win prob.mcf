@@ -1,5 +1,8 @@
 % Maximum win probability (basket picks best pair)
-% 0.7650310805
+% For classic version (non-deterministic choice of the basket): 0.6313573066
+% Classic best tactic: 0.6313573066
+% Classic worst tactic: 0.5549358258
+% For the large version: 
 % form mu X. val(0) || <victory>val(1) || <true>X;
 
 form mu X. <true*>(<victory>val(1) || val(0));

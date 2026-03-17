@@ -1,0 +1,11 @@
+%  maximum expected number of turns for large version
+%  minimal expected number of turns for large version
+
+% minimal
+form mu X.
+    val(0) ||
+    (
+        [victory || defeat] val(0) &&
+        [exists d: DiceVal . dice_roll(d)] (X + val(1)) &&
+        [exists f1, f2: Fruit . pick_two(f1, f2)] X
+    );
