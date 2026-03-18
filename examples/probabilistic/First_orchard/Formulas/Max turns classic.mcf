@@ -1,5 +1,7 @@
+% maximum expected number of turns for the classic version
 % non-deterministic choice 
-% 22.33909653 maximum expected number of turns for small game
+% classic: 22.33909653 
+
 %deterministic
 % optimal maximum: 20.88278653
 % non-optimal maximum: 22.33909653

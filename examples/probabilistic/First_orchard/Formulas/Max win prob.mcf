@@ -2,7 +2,11 @@
 % For classic version (non-deterministic choice of the basket): 0.6313573066
 % Classic best tactic: 0.6313573066
 % Classic worst tactic: 0.5549358258
-% For the large version: 
+
+% For the large version (non-deterministic choice of the basket): 0.6840474981279693889
+% Large best tactic: 0.6840474981279693889
+% Large worst tactic: 0.53239914215227857053
+
 % form mu X. val(0) || <victory>val(1) || <true>X;
 
 form mu X. <true*>(<victory>val(1) || val(0));

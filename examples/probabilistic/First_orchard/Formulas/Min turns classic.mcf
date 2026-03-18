@@ -1,5 +1,8 @@
+% Minimum expected number of turns for the classic version.
+
 % non-deterministic choice 
 % 20.88278653 minimal expected number of turns for small game
+
 %deterministic
 % optimal minimum: 20.88278653
 % non-optimal minimum: 22.33909653

@@ -1,5 +1,7 @@
-%  maximum expected number of turns for large version
-%  minimal expected number of turns for large version
+% Maximum expected number of turns for the large version
+% Generic: 44.382734671948838923
+% optimal: 40.123403154579641239
+% worst: 44.382734671948838923
 
 % max
 form mu X.

@@ -1,10 +1,13 @@
 % Maximum defeat probability (basket picks worst pair)
+
 % For classic: 0.4450641742
 % Classic best tactic: 0.3686426934
 % Classic worst tactic: 0.4450641742
-% For large:
-% Large best tactic:
-% Large worst tactic: 
+
+% For large: 0.46760085784771765471
+% Large best tactic: 0.31595250187202772452
+% Large worst tactic: 0.4676008578477175992
+
 %form mu X. val(0) || <defeat>val(1) || <true>X;
 
 form mu X. <true*>(<defeat>val(1) || val(0));
