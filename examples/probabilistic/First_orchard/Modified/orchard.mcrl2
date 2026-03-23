@@ -1,0 +1,120 @@
+% This mCRL2 specification models the game 'first orchard'.
+% First orchard is a cooperative game, where a set of players alternatingly roll a dice, and 
+% try to exhaust the set of fruits in the orchard before the raven arrives. The orchard contains 4 types of fruits,
+% namely red apples, green apples, pears and plums, each of which has 4 pieces. The raven arrives after 4 rolls of the dice.
+% The dice has 6 sides, 4 of which corresponds to a specific fruit, 1 to the raven, and the last to an arbitrary fruits.
+% The game is won if the orchard is emptied before the raven arrives, and lost otherwise.  
+
+% Define sorts for the various data types used in the specification.
+% Fruit corresponds to the different types of fruits in the orchard, 
+% where rApple corresponds to Red Apple, gApple to Green Apple, and so on.
+% DiceVal describes the outcome of rolling the dice: a specific fruit, the raven, or the basket.
+sort 
+    Fruit = struct rApple | gApple | pear | plum;
+    DiceVal = struct fruit(Fruit) | val_raven | basket;
+
+% Actions can be dice_roll (that can take value DiceVal intuitively), pick_two for the basket action, where 2 fruits are picked,
+% and victory/defeat to indicate the end of the game (see above).
+act 
+    dice_roll: DiceVal;
+    pick_two: Fruit;
+    reduce;
+    victory, defeat;
+
+% Helper map to check if a specific fruit count is > 0
+% The first parameter is the fruit type, and the next four parameters are the counts of each fruit in the orchard.
+% Returns the number of fruits of the specified type currently in the orchard.
+map cnt: Fruit # Nat # Nat # Nat # Nat -> Nat;
+var r, g, p, pl: Nat;
+eqn cnt(rApple, r, g, p, pl) = r;
+    cnt(gApple, r, g, p, pl) = g;
+    cnt(pear, r, g, p, pl) = p;
+    cnt(plum, r, g, p, pl) = pl;
+
+% The process for the basket action. 
+% If there are 1 fruit left, that fruit is removed, as trivially there is no other option. 
+% Otherwise, a fruit is picked non-deterministically.
+proc Basket(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
+    % If total fruits <= 2, remove everything
+    (r + g + p + pl <= 1) -> Game(0, 0, 0, 0, raven, true)
+    <>
+    % Else, non-deterministically pick a valid fruits
+    (r + g + p + pl > 1) -> 
+        sum f1: Fruit . 
+        (
+            (cnt(f1, r, g, p, pl) >= 1) -> 
+                pick_two(f1) . 
+                Game(
+                    Int2Nat(r  - (if(f1==rApple, 1, 0))),
+                    Int2Nat(g  - (if(f1==gApple, 1, 0))),
+                    Int2Nat(p  - (if(f1==pear, 1, 0))),
+                    Int2Nat(pl - (if(f1==plum, 1, 0))),
+                    raven,
+                    true
+                )
+        );
+
+% An added action on top of the First Orchard game
+% Allows the player trade 3 pieces of fruit for 1 raven reduction
+% This action might be useful in case the raven gets close to winning with sufficient game progression
+% This action can be called by the player at any point (but not during throwing the die)
+proc reduce_raven(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
+        sum f1, f2, f3: Fruit .
+        (
+            % The 3 picked fruits are distinct and there have already been one procured of each
+            ((f1 != f2 && f1 != f3 && f2 != f3) && (cnt(f1, r, g, p, pl) < 4 && cnt(f2, r, g, p, pl) < 4 && cnt(f3, r, g, p, pl) < 4)) -> 
+                (reduce . Game(
+                    Int2Nat(r  + (if(f1==rApple, 1, 0)) + (if(f2==rApple, 1, 0)) + (if(f3==rApple, 1, 0))),
+                    Int2Nat(g  + (if(f1==gApple, 1, 0)) + (if(f2==gApple, 1, 0)) + (if(f3==gApple, 1, 0))),
+                    Int2Nat(p  + (if(f1==pear, 1, 0))   + (if(f2==pear, 1, 0))   + (if(f3==pear, 1, 0))),
+                    Int2Nat(pl + (if(f1==plum, 1, 0))   + (if(f2==plum, 1, 0))   + (if(f3==plum, 1, 0))),
+                    raven + 1,
+                    false
+                )
+            )
+            <>
+            % Two of the picked fruits are the same, and there have already been two procured of that fruit
+            ((f1 == f2 && f1 != f3) && (cnt(f1, r, g, p, pl) < 3 && cnt(f3, r, g, p, pl) < 4)) -> 
+                (reduce . Game(
+                    Int2Nat(r  + (if(f1==rApple, 2, 0)) + (if(f3==rApple, 1, 0))),
+                    Int2Nat(g  + (if(f1==gApple, 2, 0)) + (if(f3==gApple, 1, 0))),
+                    Int2Nat(p  + (if(f1==pear, 2, 0))   + (if(f3==pear, 1, 0))),
+                    Int2Nat(pl + (if(f1==plum, 2, 0))   + (if(f3==plum, 1, 0))),
+                    raven + 1,
+                    false
+                )
+            )
+            <>
+            % The three picked fruits are the same
+            ((f1 == f2 && f1 == f3) && (cnt(f1, r, g, p, pl) < 2)) -> 
+                (reduce . Game(
+                    Int2Nat(r  + (if(f1==rApple, 3, 0))),
+                    Int2Nat(g  + (if(f1==gApple, 3, 0))),
+                    Int2Nat(p  + (if(f1==pear, 3, 0))),
+                    Int2Nat(pl + (if(f1==plum, 3, 0))),
+                    raven + 1,
+                    false
+                )
+            )
+        );
+
+% Main process of the game.
+% Checks for winning and losing conditions, otherwise rolls the dice.
+% The dice has 6 outcomes uniformly distributed (probability of 1/6), with actions directly represented as DiceVal.
+% fruit(f) reduces the corresponding fruit f count by 1, val_raven the raven count by 1 and basket calls Basket process.
+proc Game(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat, can_reduce: Bool) =
+    (r==0 && g==0 && p==0 && pl==0) -> victory . delta
+    <> (raven==0) -> defeat . delta
+    <> (raven > 0 && r+g+p+pl > 0) ->
+        (can_reduce && r + g + p + pl <= 13 && raven == 1) -> reduce_raven(r, g, p, pl, raven)
+        <>
+        dist d:DiceVal[1/6] . (
+            (d==fruit(rApple)) -> (dice_roll(fruit(rApple)) . Game(Int2Nat(r-if(r>0,1,0)), g, p, pl, raven, true))
+            <> (d==fruit(gApple)) -> (dice_roll(fruit(gApple)) . Game(r, Int2Nat(g-if(g>0,1,0)), p, pl, raven, true))
+            <> (d==fruit(pear))   -> (dice_roll(fruit(pear)) . Game(r, g, Int2Nat(p-if(p>0,1,0)), pl, raven, true))
+            <> (d==fruit(plum))   -> (dice_roll(fruit(plum)) . Game(r, g, p, Int2Nat(pl-if(pl>0,1,0)), raven, true))
+            <> (d==val_raven)     -> (dice_roll(val_raven) . Game(r, g, p, pl, Int2Nat(raven-1), true))
+            <> (d==basket)        -> (dice_roll(basket) . Basket(r, g, p, pl, raven))
+        );
+
+init Game(4, 4, 4, 4, 2, true);
