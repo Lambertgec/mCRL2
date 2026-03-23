@@ -1,0 +1,11 @@
+% Minimum expected number of turns for the modified version.
+
+
+% minimal
+form mu X.
+    val(0) ||
+    (
+        [victory || defeat] val(0) &&
+        [exists d: DiceVal . dice_roll(d)] (X + val(1)) &&
+        [exists f: Fruit . pick_two(f)] X && [reduce] (X + val(1))
+    );
