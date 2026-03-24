@@ -1,5 +1,5 @@
 % Minimum expected number of turns for the modified version.
-
+% 20.88278653 - matching the first orchard version as expected 
 
 % minimal
 form mu X.
@@ -7,5 +7,5 @@ form mu X.
     (
         [victory || defeat] val(0) &&
         [exists d: DiceVal . dice_roll(d)] (X + val(1)) &&
-        [exists f: Fruit . pick_two(f)] X && [reduce] (X + val(1))
+        [exists f: Fruit . pick_two(f)] X && [exists r: Fruit . reduce(r)] (X + val(1))
     );

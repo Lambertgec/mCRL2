@@ -2,4 +2,4 @@ form mu X.
     <victory || defeat> val(0) ||
     (sup d: DiceVal . <dice_roll(d)> (X + val(1))) ||
     (sup f1: Fruit . <pick_two(f1)> X) ||
-    val(0) || <reduce> (X + val(1));
+    val(0) || <exists r: Fruit . reduce(r)> (X + val(1));
