@@ -39,7 +39,6 @@ proc BasketAction(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
     )
     <>
     Basket(r, g, p, pl, raven);
-oved, as trivially there is no other option. 
 
 
 proc Basket(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
