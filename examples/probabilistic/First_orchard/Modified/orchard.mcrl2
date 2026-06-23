@@ -1,102 +1,69 @@
-% mCRL2 specification for the modification of the First Orchard game
-% The player is allowed to trade 3 pieces of random fruits for 1 raven step reduction in case a basket action is rolled (and the game state allows it)
-% Model is identical to the first orchard model, unless stated explicitly. 
+% This is a modified version of the First Orchard game, where the player has
+% an additional action available when rolling the basket action. Given that the 
+% player has collected enough pieces of fruit, they can choose to exchange 
+% a set number in exchange for moving the raven back by 1 step.
+
+% The goal of this specification is to model the game in a way where the optimal
+% strategy is no longer trivial.
 
 sort 
     Fruit = struct rApple | gApple | pear | plum;
-    DiceVal = struct fruit(Fruit) | val_raven | basket;
+    DiceVal = struct fruit(Fruit) | raven | basket;
 
-% reduce actions mark fruits lost in the raven reduction process
 act 
     dice_roll: DiceVal;
-    pick_two: Fruit;
-    reduce: Fruit;
+    pick: Fruit;
     victory, defeat;
+    return_fruits: Fruit # Fruit # Fruit;
 
+map init_orchard: Fruit -> Nat;
+    total: (Fruit -> Nat) -> Nat;
+    dec: Nat -> Nat;
+    inc_fruit: Nat -> Nat;
+    inc_raven: Nat -> Nat;
+    return1: (Fruit -> Nat) # Fruit -> (Fruit -> Nat);
+    return3: (Fruit -> Nat) # Fruit # Fruit # Fruit -> (Fruit -> Nat);
+    costReduce, ravenCount, fruitCount: Nat;
 
-map cnt: Fruit # Nat # Nat # Nat # Nat -> Nat;
-var r, g, p, pl: Nat;
-eqn cnt(rApple, r, g, p, pl) = r;
-    cnt(gApple, r, g, p, pl) = g;
-    cnt(pear, r, g, p, pl) = p;
-    cnt(plum, r, g, p, pl) = pl;
-
-% Parameterize game initialization
-map costReduce, ravenCount, fruitCount: Nat;
-eqn costReduce = 3;
+var f, f1, f2, f3: Fruit,
+    orch: Fruit -> Nat,
+    n: Nat;
+eqn init_orchard(f) = fruitCount;
+    total(orch) = orch(rApple) + orch(gApple) + orch(pear) + orch(plum);
+    dec(n) = if(n>0, Int2Nat(n-1), 0);
+    inc_fruit(n) = if(n < fruitCount, Int2Nat(n+1), fruitCount);
+    inc_raven(n) = if(n < ravenCount, Int2Nat(n+1), ravenCount);
+    return1(orch, f1) = orch[f1 -> inc_fruit(orch(f1))];
+    return3(orch, f1, f2, f3) = return1(return1(return1(orch, f1), f2), f3);
+    costReduce = 3;
     ravenCount = 5;
     fruitCount = 4;
 
-% Helper process for when a basket is rolled.
-% The player can either just use the basket to pick a fruit, or, if they have enough 
-% collected fruits and the raven can be pushed back, they can choose to spend 3 fruits to move the raven back by 1.
-proc BasketAction(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
-    ( ((fruitCount * 4) >= (r + g + p + pl + costReduce)) && (raven < ravenCount) ) ->
+proc BasketAction(orch: Fruit -> Nat, ravenTimer: Nat) =
+    ( ((fruitCount * 4) >= (total(orch) + costReduce)) && (ravenTimer < ravenCount) ) ->
     (
-        Basket(r, g, p, pl, raven) 
-        + 
-        reduce_raven(r, g, p, pl, raven, costReduce)
+        ( sum f1: Fruit . (orch(f1) >= 1) -> pick(f1) . Game(orch[f1 -> dec(orch(f1))], ravenTimer) )
+        +
+        reduce_raven(orch, ravenTimer)
     )
     <>
-    Basket(r, g, p, pl, raven);
+    ( sum f1: Fruit . (orch(f1) >= 1) -> pick(f1) . Game(orch[f1 -> dec(orch(f1))], ravenTimer) );
 
-
-proc Basket(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
-    (r + g + p + pl <= 1) -> Game(0, 0, 0, 0, raven)
-    <>
-    (r + g + p + pl > 1) -> 
-        sum f1: Fruit . 
-        (
-            (cnt(f1, r, g, p, pl) >= 1) -> 
-                pick_two(f1) . 
-                Game(
-                    Int2Nat(r  - (if(f1==rApple, 1, 0))),
-                    Int2Nat(g  - (if(f1==gApple, 1, 0))),
-                    Int2Nat(p  - (if(f1==pear, 1, 0))),
-                    Int2Nat(pl - (if(f1==plum, 1, 0))),
-                    raven
-                )
-        );
-
-% An added action on top of the First Orchard game
-% Allows the player trade 3 pieces of fruit for 1 raven reduction, if the game state allows it.
-% Can be executed after a basket action is rolled.
-proc reduce_raven(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat, left: Nat) =
+proc reduce_raven(orch: Fruit -> Nat, ravenTimer: Nat) =
+    sum f1, f2, f3: Fruit . 
     (
-        (left > 0) ->
-            dist d: Fruit[
-                if(
-                    cnt(d, r, g, p, pl) < fruitCount,
-                    1/(
-                        if(r < fruitCount, 1, 0)
-                      + if(g < fruitCount, 1, 0)
-                      + if(p < fruitCount, 1, 0)
-                      + if(pl < fruitCount, 1, 0)
-                    ),
-                    0
-                )
-            ] . (
-                (d==rApple) -> reduce(rApple) . reduce_raven(Int2Nat(r+1), g, p, pl, raven, Int2Nat(left-1))
-                <> (d==gApple) -> reduce(gApple) . reduce_raven(r, Int2Nat(g+1), p, pl, raven, Int2Nat(left-1))
-                <> (d==pear)   -> reduce(pear)   . reduce_raven(r, g, Int2Nat(p+1), pl, raven, Int2Nat(left-1))
-                <> (d==plum)   -> reduce(plum)   . reduce_raven(r, g, p, Int2Nat(pl+1), raven, Int2Nat(left-1))
-            ) 
-        <>
-        (left == 0) -> tau . Game(r, g, p, pl, Int2Nat(raven+1))
+        (total(return3(orch, f1, f2, f3)) == (total(orch) + costReduce)) -> 
+            return_fruits(f1, f2, f3) . Game(return3(orch, f1, f2, f3), inc_raven(ravenTimer))
     );
 
-
-proc Game(r: Nat, g: Nat, p: Nat, pl: Nat, raven: Nat) =
-    (r==0 && g==0 && p==0 && pl==0) -> victory . delta
-    <> (raven==0) -> defeat . delta
-    <> (raven > 0 && r+g+p+pl > 0) ->
+proc Game(orch: Fruit -> Nat, ravenTimer: Nat) =
+    (total(orch) == 0) -> victory . delta
+    <> (ravenTimer == 0) -> defeat . delta
+    <> (ravenTimer > 0 && total(orch) > 0) ->
         dist d:DiceVal[1/6] . (
-            (d==fruit(rApple)) -> (dice_roll(fruit(rApple)) . Game(Int2Nat(r-if(r>0,1,0)), g, p, pl, raven))
-            <> (d==fruit(gApple)) -> (dice_roll(fruit(gApple)) . Game(r, Int2Nat(g-if(g>0,1,0)), p, pl, raven))
-            <> (d==fruit(pear))   -> (dice_roll(fruit(pear)) . Game(r, g, Int2Nat(p-if(p>0,1,0)), pl, raven))
-            <> (d==fruit(plum))   -> (dice_roll(fruit(plum)) . Game(r, g, p, Int2Nat(pl-if(pl>0,1,0)), raven))
-            <> (d==val_raven)     -> (dice_roll(val_raven) . Game(r, g, p, pl, Int2Nat(raven-1)))
-            <> (d==basket)        -> (dice_roll(basket) . BasketAction(r, g, p, pl, raven))
+            sum f: Fruit . (d == fruit(f)) -> (dice_roll(fruit(f)) . Game(orch[f -> dec(orch(f))], ravenTimer))
+            <> (d == raven)   -> (dice_roll(raven) . Game(orch, dec(ravenTimer)))
+            <> (d == basket)  -> (dice_roll(basket) . BasketAction(orch, ravenTimer))
         );
 
-init Game(fruitCount, fruitCount, fruitCount, fruitCount, ravenCount);
+init Game(init_orchard, ravenCount);

@@ -1,0 +1,9 @@
+% The formula expresses the minimum expected number of turns.
+
+mu X.
+    val(0) ||
+    (
+        [victory || defeat] val(0) &&
+        inf d: DiceVal . [dice_roll(d)] (X + val(1)) &&
+        inf f: Fruit . [pick(f)] X
+    )

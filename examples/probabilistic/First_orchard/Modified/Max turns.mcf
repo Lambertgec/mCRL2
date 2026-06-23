@@ -1,0 +1,9 @@
+% The formula expresses the maximum expected number of turns.
+
+mu X.
+    (sup d: DiceVal . <dice_roll(d)> (X + val(1))) ||
+    (sup f1: Fruit . <pick(f1)> X) ||
+    (sup f1, f2, f3: Fruit . <return_fruits(f1, f2, f3)> X) ||
+    <victory> val(0) || 
+    <defeat> val(0) ||
+    val(0)

@@ -1,59 +1,34 @@
-% This mCRL2 specification models the game 'first orchard'.
-% First orchard is a cooperative game, where a set of players alternatingly roll a dice, and 
-% try to exhaust the set of fruits in the orchard before the raven arrives. The orchard contains 4 types of fruits,
-% namely red apples, green apples, pears and plums, each of which has 4 pieces. The raven arrives after rolling it 5 times.
-% The dice has 6 sides, 4 of which corresponds to a specific fruit, 1 to the raven, and the last to an arbitrary fruit.
+% This mCRL2 specification models the game First Orchard. This is a cooperative game, where player(s) roll a die, and 
+% try to exhaust a set of fruits in the orchard before a raven arrives. The orchard contains 4 types of fruit,
+% namely red apples, green apples, pears and plums, each of which has 4 pieces. The raven arrives after taking 5 steps.
+% The die has 6 sides, 4 of which corresponds to taking a piece of a specific fruit, 1 to progressing the raven by one step, 
+% and lastly, a basket face allows the player to pick a piece of fruit arbitrarily.
 % The game is won if the orchard is emptied before the raven arrives, and lost otherwise. 
 
-% Define sorts for the various data types used in the specification.
-% Fruit corresponds to the different types of fruits in the orchard, 
-% where rApple corresponds to Red Apple, gApple to Green Apple, and so on.
-% DiceVal describes the outcome of rolling the dice: a specific fruit, the raven, or the basket.
 sort 
     Fruit = struct rApple | gApple | pear | plum;
     DiceVal = struct fruit(Fruit) | raven | basket;
 
-% Actions can be dice_roll (that can take value DiceVal intuitively), pick for the basket action, where a fruit is picked,
-% and victory/defeat to indicate the end of the game (see above).
 act 
     dice_roll: DiceVal;
     pick: Fruit;
     victory, defeat;
 
-% Helper functions for:
-% Initialising the orchard with the correct number of fruits,
-% Keeping track of the number of fruits in the orchard, the raven timer, and updating
-% these values when the dice is rolled or the basket action is taken. 
 map init_orchard: Fruit -> Nat;
-map empty_orch: Fruit -> Nat;
-map total: (Fruit -> Nat) -> Nat;
-map initial_count: Nat;
-map dec: Nat -> Nat;
+    total: (Fruit -> Nat) -> Nat;
+    dec: Nat -> Nat;
 var f: Fruit,
     orch: Fruit -> Nat,
     n: Nat;
-eqn initial_count = 4;
-    init_orchard(f) = initial_count;
-    empty_orch(f) = 0;
+eqn init_orchard(f) = 4;
     total(orch) = orch(rApple) + orch(gApple) + orch(pear) + orch(plum);
     dec(n) = if(n>0, Int2Nat(n-1), 0);
 
-% The process for the basket action. 
-% If there are 1 fruit left, that fruit is removed, as trivially there is no other option. 
-% Otherwise, a fruit is picked non-deterministically.
 proc Basket(orch: Fruit -> Nat, ravenTimer: Nat) =
-    (total(orch) == 1) -> Game(empty_orch, ravenTimer)
-    <>
-    (total(orch) > 1) ->
-        sum f1: Fruit . (
-            (orch(f1) > 0) -> pick(f1) . Game(orch[f1 -> dec(orch(f1))], ravenTimer)
-        );
+    sum f1: Fruit . (
+        (orch(f1) > 0) -> pick(f1) . Game(orch[f1 -> dec(orch(f1))], ravenTimer)
+    );
 
-% Main process of the game.
-% Checks for winning and losing conditions, otherwise rolls the dice.
-% The dice has 6 outcomes uniformly distributed (probability of 1/6), with actions directly represented as DiceVal.
-% If a non exhausted resource (fruit or raven) is rolled, its value is decreased by 1, and the game continues.
-% If the basket is rolled, the Basket process is called, which non-deterministically picks a fruit to be removed from the orchard.
 proc Game(orch: Fruit -> Nat, ravenTimer: Nat) =
     (total(orch) == 0) -> victory . delta
     <> (ravenTimer == 0) -> defeat . delta
